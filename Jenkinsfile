@@ -57,6 +57,7 @@ podTemplate(
 
             }
         } 
+        
         stage('Deploy') {
             //CLIENTE DO HELM
             container('helm-container') {
