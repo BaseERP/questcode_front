@@ -19,7 +19,6 @@ podTemplate(
         def GIT_REPOS_URL = "https://github.com/BaseERP/questcode_front.git"
         def CHARTMUSEUM_URL = "http://helm-chartmuseum:8080"
 
-
         stage('Checkout') {
             echo 'Iniciando Clone do repositorio'
             REPOS = checkout([$class: 'GitSCM', branches: [[name: '*/master'], [name: '*/develop']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'github', url: GIT_REPOS_URL]]])
