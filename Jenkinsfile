@@ -16,12 +16,15 @@ podTemplate(
         def IMAGE_NAME = "frontend"
         def KUBE_NAMESPACE
         def IMAGE_VERSION 
+        def IMAGE_POSFIX = ""
         def ENVIRONMENT 
         def GIT_REPOS_URL = "https://github.com/BaseERP/questcode_front.git"
         def GIT_BRANCH 
         def CHARTMUSEUM_URL = "http://helm-chartmuseum:8080"
         def HELM_CHART_NAME = "questcode/frontend"
         def HELM_DEPLOY_NAME  
+        def NODE_PORT = "30080"
+
         stage('Checkout') {
             echo 'Iniciando Clone do repositorio'
             REPOS = checkout([$class: 'GitSCM', branches: [[name: '*/master'], [name: '*/develop']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'github', url: GIT_REPOS_URL]]])
@@ -32,6 +35,8 @@ podTemplate(
             } else if(GIT_BRANCH.equals("origin/develop")) {
                KUBE_NAMESPACE = "staging"
                ENVIRONMENT = "staging"
+               IMAGE_POSFIX = "-RC"
+               NODE_PORT = "31080"
             } else {
                 def error =  "Não existe pipeline para a branch ${GIT_BRANCH}"
                 echo error
@@ -39,7 +44,7 @@ podTemplate(
             }
             HELM_DEPLOY_NAME = KUBE_NAMESPACE + "-frontend" 
             IMAGE_VERSION = sh label: '', returnStdout: true, script: 'sh read-package-version.sh'
-            IMAGE_VERSION =IMAGE_VERSION.trim()
+            IMAGE_VERSION =IMAGE_VERSION.trim()+IMAGE_POSFIX
         }
         stage('Package') {
             container('docker-container') {
@@ -61,10 +66,10 @@ podTemplate(
                 sh 'helm repo update'
                 try{
                     //Fazer helm upgrade
-                    sh "helm upgrade --namespace=${KUBE_NAMESPACE} ${HELM_DEPLOY_NAME} ${HELM_CHART_NAME} --set image.tag=${IMAGE_VERSION}"
+                    sh "helm upgrade --namespace=${KUBE_NAMESPACE} ${HELM_DEPLOY_NAME} ${HELM_CHART_NAME} --set image.tag=${IMAGE_VERSION} --service.nodePort=${NODE_PORT}"
                 } catch(Exception e) {
                     //Fazer helm install
-                    sh "helm install --namespace=${KUBE_NAMESPACE} --name ${HELM_DEPLOY_NAME} ${HELM_CHART_NAME} --set image.tag=${IMAGE_VERSION}"
+                    sh "helm install --namespace=${KUBE_NAMESPACE} --name ${HELM_DEPLOY_NAME} ${HELM_CHART_NAME} --set image.tag=${IMAGE_VERSION} --service.nodePort=${NODE_PORT}"
                 }
             }
 
