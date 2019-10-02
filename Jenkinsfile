@@ -14,14 +14,30 @@ podTemplate(
     node('questcode') {
         def REPOS
         def IMAGE_NAME = "frontend"
+        def KUBE_NAMESPACE
         def IMAGE_VERSION 
-        def ENVIRONMENT = "staging"
+        def ENVIRONMENT 
         def GIT_REPOS_URL = "https://github.com/BaseERP/questcode_front.git"
+        def GIT_BRANCH 
         def CHARTMUSEUM_URL = "http://helm-chartmuseum:8080"
+        def HELM_CHART_NAME = "questcode/frontend"
+        def HELM_DEPLOY_NAME  
 
         stage('Checkout') {
             echo 'Iniciando Clone do repositorio'
             REPOS = checkout([$class: 'GitSCM', branches: [[name: '*/master'], [name: '*/develop']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'github', url: GIT_REPOS_URL]]])
+            GIT_BRANCH = RESPOS.GIT_BRANCH
+            if(GIT_BRANCH.equals("master")) {
+               KUBE_NAMESPACE = "prod"
+               ENVIRONMENT = "production"
+            } else if(GIT_BRANCH.equals("develop")) {
+               KUBE_NAMESPACE = "staging"
+               ENVIRONMENT = "staging"
+            } else {
+                echo "Não existe pipeline para a branch ${GIT_BRANCH}"
+                exit 0
+            }
+            HELM_DEPLOY_NAME = KUBE_NAMESPACE + "-frontend" 
             IMAGE_VERSION = sh label: '', returnStdout: true, script: 'sh read-package-version.sh'
             IMAGE_VERSION =IMAGE_VERSION.trim()
         }
@@ -43,7 +59,13 @@ podTemplate(
                 sh 'helm init --client-only'
                 sh "helm repo add questcode ${CHARTMUSEUM_URL}"
                 sh 'helm repo update'
-                sh "helm upgrade staging-frontend questcode/frontend --set image.tag=${IMAGE_VERSION}"
+                try{
+                    //Fazer helm upgrade
+                    sh "helm upgrade --namespace=${KUBE_NAMESPACE} ${HELM_DEPLOY_NAME} ${HELM_CHART_NAME} --set image.tag=${IMAGE_VERSION}"
+                } catch(Exception e) {
+                    //Fazer helm install
+                    sh "helm install --namespace=${KUBE_NAMESPACE} --name ${HELM_DEPLOY_NAME} ${HELM_CHART_NAME} --set image.tag=${IMAGE_VERSION}"
+                }
             }
 
         }
