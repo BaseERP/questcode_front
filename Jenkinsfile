@@ -25,16 +25,17 @@ podTemplate(
         stage('Checkout') {
             echo 'Iniciando Clone do repositorio'
             REPOS = checkout([$class: 'GitSCM', branches: [[name: '*/master'], [name: '*/develop']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'github', url: GIT_REPOS_URL]]])
-            GIT_BRANCH = RESPOS.GIT_BRANCH
-            if(GIT_BRANCH.equals("master")) {
+            GIT_BRANCH = REPOS.GIT_BRANCH
+            if(GIT_BRANCH.equals("origin/master")) {
                KUBE_NAMESPACE = "prod"
                ENVIRONMENT = "production"
-            } else if(GIT_BRANCH.equals("develop")) {
+            } else if(GIT_BRANCH.equals("origin/develop")) {
                KUBE_NAMESPACE = "staging"
                ENVIRONMENT = "staging"
             } else {
-                echo "Não existe pipeline para a branch ${GIT_BRANCH}"
-                exit 0
+                def error =  "Não existe pipeline para a branch ${GIT_BRANCH}"
+                echo error
+                throw new Exception(error)
             }
             HELM_DEPLOY_NAME = KUBE_NAMESPACE + "-frontend" 
             IMAGE_VERSION = sh label: '', returnStdout: true, script: 'sh read-package-version.sh'
