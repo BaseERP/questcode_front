@@ -31,12 +31,13 @@ podTemplate(
     node(LABEL_ID) {
         stage('Checkout') {
             echo 'Iniciando Clone do repositorio'
-            REPOS = checkout([$class: 'GitSCM', branches: [[name: '*/master'], [name: '*/develop']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'github', url: GIT_REPOS_URL]]])
+            REPOS = checkout scm
+            //REPOS = checkout([$class: 'GitSCM', branches: [[name: '*/master'], [name: '*/develop']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'github', url: GIT_REPOS_URL]]])
             GIT_BRANCH = REPOS.GIT_BRANCH
-            if(GIT_BRANCH.equals("origin/master")) {
+            if(GIT_BRANCH.equals("master")) {
                KUBE_NAMESPACE = "prod"
                ENVIRONMENT = "production"
-            } else if(GIT_BRANCH.equals("origin/develop")) {
+            } else if(GIT_BRANCH.equals("develop")) {
                KUBE_NAMESPACE = "staging"
                ENVIRONMENT = "staging"
                IMAGE_POSFIX = "-RC"
@@ -71,11 +72,10 @@ podTemplate(
                 sh 'helm repo update'
                 try{
                     //Fazer helm upgrade
-                    sh "helm upgrade --namespace=${KUBE_NAMESPACE} ${HELM_DEPLOY_NAME} ${HELM_CHART_NAME} --set image.tag=${IMAGE_VERSION} --set ingress.host[0]=${INGRESS_HOST}"
+                    sh "helm upgrade --namespace=${KUBE_NAMESPACE} ${HELM_DEPLOY_NAME} ${HELM_CHART_NAME} --set image.tag=${IMAGE_VERSION} --set ingress.hosts[0].host=${INGRESS_HOST} "
                 } catch(Exception e) {
                     //Fazer helm install
-                    //sh "helm install --namespace=${KUBE_NAMESPACE} --name ${HELM_DEPLOY_NAME} ${HELM_CHART_NAME} --set image.tag=${IMAGE_VERSION} --set service.nodePort=${NODE_PORT}"
-                    sh "helm install --namespace=${KUBE_NAMESPACE} --name ${HELM_DEPLOY_NAME} ${HELM_CHART_NAME} --set image.tag=${IMAGE_VERSION} --set ingress.host[0]=${INGRESS_HOST}"
+                    sh "helm install --namespace=${KUBE_NAMESPACE} --name ${HELM_DEPLOY_NAME} ${HELM_CHART_NAME} --set image.tag=${IMAGE_VERSION} --set ingress.hosts[0].host=${INGRESS_HOST} "
                 }
             }
 
