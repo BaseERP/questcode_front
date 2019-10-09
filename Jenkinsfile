@@ -1,7 +1,10 @@
+def LABEL_ID = "questcode-${UUID.randomUUID().toString()}"
+
+
 podTemplate(
     name: 'questcode', 
     namespace: 'devops', 
-    label: 'questcode', 
+    label: LABEL_ID, 
     containers:[
         containerTemplate(args: 'cat', command: '/bin/sh -c', image: 'docker', livenessProbe: containerLivenessProbe(execArgs: '', failureThreshold: 0, initialDelaySeconds: 0, periodSeconds: 0, successThreshold: 0, timeoutSeconds: 0), name: 'docker-container', resourceLimitCpu: '', resourceLimitMemory: '', resourceRequestCpu: '', resourceRequestMemory: '', ttyEnabled: true),
         containerTemplate(args: 'cat', command: '/bin/sh -c', image: 'lachlanevenson/k8s-helm:v2.11.0',  name: 'helm-container',  ttyEnabled: true)
@@ -10,21 +13,22 @@ podTemplate(
 )
 
 {
-    //Start Pipeline
-    node('questcode') {
-        def REPOS
-        def IMAGE_NAME = "frontend"
-        def KUBE_NAMESPACE
-        def IMAGE_VERSION 
-        def IMAGE_POSFIX = ""
-        def ENVIRONMENT 
-        def GIT_REPOS_URL = "https://github.com/BaseERP/questcode_front.git"
-        def GIT_BRANCH 
-        def CHARTMUSEUM_URL = "http://helm-chartmuseum:8080"
-        def HELM_CHART_NAME = "questcode/frontend"
-        def HELM_DEPLOY_NAME  
-        def NODE_PORT = "30080"
+    def REPOS
+    def IMAGE_NAME = "frontend"
+    def KUBE_NAMESPACE
+    def IMAGE_VERSION 
+    def IMAGE_POSFIX = ""
+    def ENVIRONMENT 
+    def GIT_REPOS_URL = "https://github.com/BaseERP/questcode_front.git"
+    def GIT_BRANCH 
+    def CHARTMUSEUM_URL = "http://helm-chartmuseum:8080"
+    def HELM_CHART_NAME = "questcode/frontend"
+    def HELM_DEPLOY_NAME  
+    //def NODE_PORT = "30080"
+    def INGRESS_HOST = "questcode.org"
 
+    //Start Pipeline
+    node(LABEL_ID) {
         stage('Checkout') {
             echo 'Iniciando Clone do repositorio'
             REPOS = checkout([$class: 'GitSCM', branches: [[name: '*/master'], [name: '*/develop']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'github', url: GIT_REPOS_URL]]])
@@ -36,7 +40,7 @@ podTemplate(
                KUBE_NAMESPACE = "staging"
                ENVIRONMENT = "staging"
                IMAGE_POSFIX = "-RC"
-               NODE_PORT = "31080"
+               INGRESS_HOST = "staging.questcode.org"
             } else {
                 def error =  "Não existe pipeline para a branch ${GIT_BRANCH}"
                 echo error
@@ -57,6 +61,7 @@ podTemplate(
 
             }
         } 
+        
         stage('Deploy') {
             //CLIENTE DO HELM
             container('helm-container') {
@@ -66,10 +71,11 @@ podTemplate(
                 sh 'helm repo update'
                 try{
                     //Fazer helm upgrade
-                    sh "helm upgrade --namespace=${KUBE_NAMESPACE} ${HELM_DEPLOY_NAME} ${HELM_CHART_NAME} --set image.tag=${IMAGE_VERSION} --set service.nodePort=${NODE_PORT}"
+                    sh "helm upgrade --namespace=${KUBE_NAMESPACE} ${HELM_DEPLOY_NAME} ${HELM_CHART_NAME} --set image.tag=${IMAGE_VERSION} --set ingress.host[0]=${INGRESS_HOST}"
                 } catch(Exception e) {
                     //Fazer helm install
-                    sh "helm install --namespace=${KUBE_NAMESPACE} --name ${HELM_DEPLOY_NAME} ${HELM_CHART_NAME} --set image.tag=${IMAGE_VERSION} --set service.nodePort=${NODE_PORT}"
+                    //sh "helm install --namespace=${KUBE_NAMESPACE} --name ${HELM_DEPLOY_NAME} ${HELM_CHART_NAME} --set image.tag=${IMAGE_VERSION} --set service.nodePort=${NODE_PORT}"
+                    sh "helm install --namespace=${KUBE_NAMESPACE} --name ${HELM_DEPLOY_NAME} ${HELM_CHART_NAME} --set image.tag=${IMAGE_VERSION} --set ingress.host[0]=${INGRESS_HOST}"
                 }
             }
 
