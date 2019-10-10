@@ -37,6 +37,7 @@ podTemplate(
             if(GIT_BRANCH.equals("master")) {
                KUBE_NAMESPACE = "prod"
                ENVIRONMENT = "production"
+               INGRESS_HOST = "questcode.org"               
             } else if(GIT_BRANCH.equals("develop")) {
                KUBE_NAMESPACE = "staging"
                ENVIRONMENT = "staging"
